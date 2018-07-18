@@ -98,6 +98,9 @@ export default function LoginController(toast, loginService, userService/*, $roo
                         if(XMLHttpRequest.status == 400){
                             $(".error").html(errorJson.message);
                         }
+                        if(XMLHttpRequest.status == 500){
+                            $(".error").html(errorJson.message);
+                        }
                     }
                 });
             }

@@ -295,7 +295,7 @@ public class UserController extends BaseController {
 
                 if (sendEmail) {
                     UserCredentials userCredentialx = userService.findUserCredentialsByUserId(id);
-                    
+
                     String baseUrl = constructBaseUrl(request);
                     String activateUrl = String.format(ACTIVATE_URL_PATTERN, baseUrl,
                             userCredentialx.getActivateToken());
