@@ -45,10 +45,13 @@ import org.thingsboard.server.common.data.page.TextPageLink;
 import org.thingsboard.server.common.data.security.Authority;
 import org.thingsboard.server.common.data.security.UserCredentials;
 import org.thingsboard.server.dao.customer.CustomerService;
+import org.thingsboard.server.dao.user.UserCredentialsDao;
 import org.thingsboard.server.service.security.auth.rest.LoginRequest;
 import org.thingsboard.server.service.security.model.SecurityUser;
 
 import javax.servlet.http.HttpServletRequest;
+import java.util.Optional;
+
 @RestController
 @RequestMapping("/api")
 public class UserController extends BaseController {
@@ -58,6 +61,9 @@ public class UserController extends BaseController {
     public static final String ACTIVATE_URL_PATTERN = "%s/api/noauth/activate?activateToken=%s";
     @Autowired
     private CustomerService customerService;
+
+    @Autowired
+    private UserCredentialsDao userCredentialsDao;
 
     @Autowired
     private MailService mailService;
@@ -242,28 +248,58 @@ public class UserController extends BaseController {
     @RequestMapping(value = "/noauth/createAccount", method = RequestMethod.POST)
     @ResponseBody
     public User createAccount(@RequestBody User user, HttpServletRequest request) throws ThingsboardException {
-        System.out.println(user);
-        System.out.println(user.getEmail());
+        //System.out.println(user);
+        //System.out.println(user.getEmail());
         if(user.getEmail() != ""){
             try {
                 User xx = userService.findUserByEmail("58926330@qq.com");
-                Customer customer = new Customer();
-                customer.setTenantId(xx.getTenantId());
-                customer.setTitle(user.getEmail());
-                Customer savecustomer = customerService.saveCustomer(customer);
-
+                Optional<Customer> isok = customerService.findCustomerByTenantIdAndTitle(xx.getTenantId(), user.getEmail());
+                System.out.println(isok.isPresent());
+                User savedUser = new User();
                 boolean sendEmail = true;
-                user.setTenantId(xx.getTenantId());
-                user.setCustomerId(savecustomer.getId());
-                user.setAuthority(Authority.CUSTOMER_USER);
+                UserId id;
+                CustomerId cid;
+                if(!isok.isPresent()) {
+                    Customer customer = new Customer();
+                    customer.setTenantId(xx.getTenantId());
+                    customer.setTitle(user.getEmail());
+                    Customer savecustomer = customerService.saveCustomer(customer);
+                    cid = savecustomer.getId();
+                }else{
+                    cid = isok.get().getId();
+                }
 
-                User savedUser = checkNotNull(userService.saveUser(user));
+                TextPageLink pageLink = createPageLink(1, "", "", "");
+                TextPageData<User> isinuser = userService.findCustomerUsers(xx.getTenantId(), cid, pageLink);
+
+                User isin = userService.findUserByEmail(user.getEmail());
+                System.out.println(isin);
+                if(isin != null) {
+                    UserCredentials userCredentials = userService.findUserCredentialsByUserId(isin.getId());
+                    id = isin.getId();
+                    System.out.println(userCredentials.isEnabled());
+                    if (userCredentials.isEnabled()) {
+                        User x = new User();
+                        x.setEmail("isActive");
+                        return x;
+                    }
+                }else{
+                    user.setTenantId(xx.getTenantId());
+                    user.setCustomerId(cid);
+                    user.setAuthority(Authority.CUSTOMER_USER);
+                    savedUser = checkNotNull(userService.saveUser(user));
+                    id = savedUser.getId();
+                }
+                System.out.println(isinuser);
+                //id = isinuser.getData().get(0).getId();
+
                 if (sendEmail) {
-                    UserCredentials userCredentials = userService.findUserCredentialsByUserId(savedUser.getId());
+                    UserCredentials userCredentialx = userService.findUserCredentialsByUserId(id);
+                    
                     String baseUrl = constructBaseUrl(request);
                     String activateUrl = String.format(ACTIVATE_URL_PATTERN, baseUrl,
-                            userCredentials.getActivateToken());
-                    String email = savedUser.getEmail();
+                            userCredentialx.getActivateToken());
+                    String email = user.getEmail();
                     try {
                         mailService.sendActivationEmail(activateUrl, email);
                     } catch (ThingsboardException e) {

@@ -80,8 +80,14 @@ export default function LoginController(toast, loginService, userService/*, $roo
                     contentType: "application/json",
                     dataType: "json",
                     success: function (res) {
-                        $(".error").html("激活邮件已成功发送！");
-                        $("input[name='email']").val("");
+                        console.log(res);
+                        if(res.name == "isActive"){
+                            $(".error").html("该邮箱已激活！");
+                            $("input[name='email']").val("");
+                        }else{
+                            $(".error").html("激活邮件已成功发送！");
+                            $("input[name='email']").val("");
+                        }
                     },
                     error : function(XMLHttpRequest, textStatus, errorThrown) {//这个error函数调试时非常有用，如果解析不正确，将会弹出错误框　　　　
                         console.log(XMLHttpRequest.responseText);
